@@ -7,6 +7,9 @@ Created on Tue Dec 12 16:21:54 2017
 """
 
 import numpy as np
+import sklearn
+import sklearn.datasets
+import sklearn.linear_model
 
 
 class MultiplyGate:
@@ -165,4 +168,10 @@ class Net:
     
             if print_loss and epoch % 1000 == 0:
                 print("Loss after iteration %i: %f" %(epoch, self.calculate_loss(X, y)))
-                
+
+
+''' 
+Construct the object Net --> Let's crete our [2,3,1] of the example
+'''    
+
+          
