@@ -7,25 +7,9 @@ Created on Tue Dec 12 16:21:54 2017
 """
 
 import numpy as np
-import sklearn
-import sklearn.datasets
-import sklearn.linear_model
-
-
-class MultiplyGate:
-    '''
-    Gate that performs multiplication between vectors --> They are gradient switches
-    '''
-    def forward(self, X, W):
-        # Compute the matrix multiplication q = X·W
-        q = np.dot(X, W)
-        return q
-
-    def backward(self, W, X, dL):
-        # Compute the bottom gradient, given the top gradient
-        dW = np.dot(np.transpose(X), dL) # dL/dW = (dL/dq)·(dq/dX) # dq/dX = transpose(X) --> Eq. 14
-        dX = np.dot(dL, np.transpose(W)) # dL/dx = (dL/dq)·(dq/dW) # dq/dX = transpose(W) --> Eq. 13
-        return dW, dX
+import pandas as pd
+import sklearn.preprocessing as preprop
+import matplotlib.pyplot as plt
 
 
 class AddGate:
@@ -33,42 +17,63 @@ class AddGate:
     Gate that performs addition between vectors --> They are gradient distributors
     '''
     def forward(self, q, b):
-        # Compute the sumation r = q + b = XW + b
+        # Compute the sumation q + b = r
         return q + b
 
-    def backward(self, q, b, dL):
-        dq = dL * np.ones_like(q)                   # dL/dq = (dL/dr)·(dr/dq) = (dL/dr)·1 --> Eq. 12
-        db = np.dot(np.ones((1, dL.shape[0]), 
-                             dtype=np.float64), dL) # dL/db = (dL/dr)·(dr/db) = (dL/dr)·1 --> Eq. 11
-        return db, dq 
-    '''Why different way of calculation?'''
+    def backward(self, q, b, dJ):
+        # Compute the chain rule 
+        dq = dJ * np.ones_like(q)       # dJ/dq = (dJ/dr)·(dr/dq) = (dJ/dr)·1 --> Eq. B2
+        db = dJ * np.ones_like(q)       # dJ/db = (dJ/dr)·(dr/db) = (dJ/dr)·1 --> Eq. B3
+        return dq, db 
     
+
+class MultiplyGate:
+    '''
+    Gate that performs multiplication between vectors --> They are gradient switchers
+    '''
+    def forward(self, X, W):
+        # Compute the matrix multiplication q = X·W
+        q = np.dot(X, W) 
+        return q
+    '''
+    def backward(self, W, X, dJ):
+        # Compute the chain rule (compute the bottom gradient, given the top gradient)
+        dX = np.dot(dJ, np.transpose(W)) # dJ/dx = (dJ/dq)·(dq/dW) # dq/dX = transpose(W) --> Eq. B4
+        dW = np.dot(np.transpose(X), dJ) # dJ/dW = (dJ/dq)·(dq/dX) # dq/dX = transpose(X) --> Eq. B5
+        return dW, dX
+    '''
+    def backward(self, X, W, dJ):
+        # Compute the chain rule (compute the bottom gradient, given the top gradient)
+        dX = np.dot(dJ, W)  # dJ/dx = (dJ/dq)·(dq/dW) # dq/dX = transpose(W) --> Eq. B4
+        dW = np.dot(dJ, X)  # dJ/dW = (dJ/dq)·(dq/dX) # dq/dX = transpose(X) --> Eq. B5
+        return dX, dW
 
 class Sigmoid:
     '''
     Neuron layer with the ability of applying a sigmoid function to its inputs
     '''
     def forward(self, X):
-        # Apply the sigmpoid function
-        return 1.0 / (1.0 + np.exp(-X))             # d(sigmoid) --> Eq. 8
+        # Apply the sigmpoid function     z = sigmoid(r)
+        return 1.0 / (1.0 + np.exp(-X))             
 
-    def backward(self, X, top_diff):
-        # Calculate the gradient backward that function
-        deriv = self.forward(X)                     # d(sigmoid) 
-        return (1.0 - deriv) * deriv * top_diff     # dL/dr = (dL/dz)·(dz/dr) = top_diff * dsigmoid --> Eq.10
+    def backward(self, X, back_prop):
+        # Compute the chain rule multiplying by its own derivative
+        deriv = self.forward(X)                     # d(sigmoid(r)) 
+        return (1.0 - deriv) * deriv * back_prop    # dJ/dr = (dJ/dz)·(dz/dr) = back_prop * dsigmoid --> Eq.B6
+
 
 class Tanh:
     '''
     Neuron layer with the ability of applying a tanh function to its inputs
     '''
-    # Apply the sigmpoid function
+    # Apply the tanh function             z = tanh(r)
     def forward(self, X):
-        return np.tanh(X)                           # d(tanh) --> Eq. 8
+        return np.tanh(X)                           
 
-    def backward(self, X, top_diff):
-        # Calculate the gradient backward that function
-        L = self.forward(X)                    # d(tanh)
-        return (1.0 - np.square(L)) * top_diff # dL/dr = (dL/dz)·(dz/dr) = top_diff * dtanh --> Eq.10
+    def backward(self, X, back_prop):
+        # Compute the chain rule multiplying by its own derivative
+        J = self.forward(X)                         # d(tanh(r))
+        return (1.0 - np.square(J)) * back_prop     # dJ/dr = (dJ/dz)·(dz/dr) = back_prop * dtanh --> Eq.B6
     
 
 class Cost:
@@ -79,15 +84,15 @@ class Cost:
         # Receive the vector comming from the NN object
         self.y_hat = y_hat
     
-    def loss(self, y):
+    def loss(self, y_hat, y):   # Forward
         # Compute the sum of square errors to get the cost
-        L = np.sum(np.square(y-self.y_hat))
-        return L
+        J = np.sum(np.square(y - y_hat))
+        return J
     
-    def diff(self, y):
+    def diff(self, y):          # Backward
         # Compute the derivative of our cost to start the backProp process
-        dL = np.sum(-(y - self.y_hat))
-        return dL                       # return top_diff
+        dJ = np.sum(-(y - self.y_hat)) 
+        return dJ                       # return top_diff
         
     
 '''
@@ -97,81 +102,189 @@ class Net:
     '''
     Net that contains [Inputs, Gates, Layers, Activation Functions, Outputs]
     '''
-    def __init__(self, inputLayerSize, hiddenLayerSizes, outputLayerSize):
+    def __init__(self, inputLayerSize, hiddenLayerSize, outputLayerSize):
         # Random initialization of the weights. 
         # Our Matrix W has to convert from input dimension to layer dimension
-        self.layers_dim = [inputLayerSize, hiddenLayerSizes, outputLayerSize]
-        self.W = []
-        self.b = []
-        self.q = 0
-        self.r = 0
-        self.z = 0
+        self.inputLayerSize  = inputLayerSize
+        self.hiddenLayerSize = hiddenLayerSize
+        self.outputLayerSize = outputLayerSize
+        
+        self.W1 = np.random.randn(self.inputLayerSize, self.hiddenLayerSize)
+        self.W2 = np.random.randn(self.hiddenLayerSize, self.outputLayerSize)
+        self.b1 = np.random.randn(self.hiddenLayerSize).reshape(1, -1)
+        self.b2 = np.random.randn(self.outputLayerSize).reshape(1, -1)
+        self.XW1  = 0
+        self.z2   = 0
+        self.a2   = 0
+        self.a2W2 = 0
+        self.z3   = 0
+        self.cost = []
+        '''
+        # Create a matrix per layer for W and a vector per layer for b
         for i in range(len(self.layers_dim)-1):
             self.W.append(np.random.randn(self.layers_dim[i], self.layers_dim[i+1]) / np.sqrt(self.layers_dim[i]))
             self.b.append(np.random.randn(self.layers_dim[i+1]).reshape(1, self.layers_dim[i+1]))
+        '''
+            
         
     def feed_forward(self, X):
         '''
         Forward propagation of the input to get our prediction y_hat (or z)
+        Definition of how or neural network computes
         '''
+        if type(X) == np.matrix:
+            pass
+        elif type(X) == list():
+            X = np.transpose(np.matrix(X))
+        
         mulGate = MultiplyGate()
         addGate = AddGate()
-        layer = Tanh()
+        layer   = Sigmoid()
         
         # Now apply all the forward process for every neuron in the layer
-        for i in range(len(self.W)): # hiddenLayerSize?
-            self.q = mulGate.forward(self.W[i], X)          # q = X·W  --> Eq. F1
-            self.r = addGate.forward(self.q, self.b[i])     # r = q+b  --> Eq. F2
-            self.z = layer.forward(self.r)                  # z = f(r) --> Eq. F3
+        self.XW1   = mulGate.forward(X, self.W1)            # Eq. F1
+        self.z2    = addGate.forward(self.XW1, self.b1)     # Eq. F2
+        self.a2    = layer.forward(self.z2)                 # Eq. F3
+        self.a2W2  = mulGate.forward(self.a2, self.W2)      # Eq. F4
+        self.z3    = addGate.forward(self.a2W2, self.b2)    # Eq. F5       
+        return self.z3
         
-        return self.z
         
     def calculate_loss(self, z, y):
         '''
         Forward propagation to evaluate how well our model is doing
         '''
         costOutput = Cost(z)
-        return costOutput.loss(z, y)                    # L = cost(z,t) --> Eq. F4
+        return costOutput.loss(z, y)                 # Eq. F6
+
 
     def train(self, X, y, epochs=20000, learning_rate=0.01, reg_lambda=0.01, print_loss=False):
         '''
         Batch gradient descent using the backpropagation algorithms
         '''
-        mulGate = MultiplyGate()
-        addGate = AddGate()
-        layer = Tanh()
-        costOutput = Cost()
+        if type(X) == np.matrix:
+            pass
+        elif type(X) == list():
+            X = np.transpose(np.matrix(X))
+        
+        if type(y) == np.matrix:
+            pass
+        elif type(y) == list():
+            y = np.transpose(np.matrix(y))
+        
+        
+        mulGate    = MultiplyGate()
+        addGate    = AddGate()
+        layer      = Sigmoid()
     
         for epoch in range(epochs):           
             
             # Forward propagation
-            z = self.feed_forward(X)
+            z = self.feed_forward(X)  # Forward and update the value of all the variables
+            costOutput = Cost(z)
             
             # Cost
-            L = self.calculate_cost(z, y)
+            J = self.calculate_loss(z, y)
+            self.cost.append(J)
 
             # Backward propagation
-            top_diff = costOutput.diff(y)                       # dL/dz --> Eq. B1
-            dr = layer.backward(L, top_diff)                    # dL/dr = (dL/dz)·(dz/dr) --> Eq. B2
-            db, dq = addGate.backward(self.q, self.b, dr)       # dL/dq and dL/db --> Eq. B3 and Eq. B4
-            dW = mulGate.backward(self.W, self.X, dq)           # dL/dW = (dL/dq)·(dq/dW) --> Eq. B5
+            top_diff   = costOutput.diff(y)                             # Eq. B1
+            db1, da2W2 = addGate.backward(self.a2W2, self.b2, top_diff) # Eq. B2 + B3
+            da2, dW2   = mulGate.backward(self.a2, self.W2, da2W2)      # Eq. B4 + B5
+                # '''Layer'''
+            dz2        = layer.backward(self.z2, da2)                   # Eq. B6  
+                # '''Layer'''
+            db2, dXW1  = addGate.backward(self.XW1, self.b1, dz2)       # Eq. B7 + B8
+            dX1, dW1   = mulGate.backward(self.X1, self.W1, dXW1)       # Eq. B9 + B10
             
             # Update weights
-            for i in range(len(forward)-1, 0, -1):
                 
-                ''' Left in this part'''
-                # Add regularization terms (b1 and b2 don't have regularization terms)
-                dW += reg_lambda * self.W[i-1]
-                # Gradient descent parameter update
-                self.b[i-1] += -learning_rate * db
-                self.W[i-1] += -learning_rate * dW
-    
+            # Add regularization terms (b1 and b2 don't have regularization terms)
+            dW1 += reg_lambda * self.W1
+            dW2 += reg_lambda * self.W2
+            
+            # Gradient descent parameter update
+            self.b1 += -learning_rate * db1
+            self.W1 += -learning_rate * dW1
+            self.b2 += -learning_rate * db2
+            self.W2 += -learning_rate * dW2
+
             if print_loss and epoch % 1000 == 0:
-                print("Loss after iteration %i: %f" %(epoch, self.calculate_loss(X, y)))
+                print("Loss after iteration %i: %f" %(epoch, J))
 
 
-''' 
-Construct the object Net --> Let's crete our [2,3,1] of the example
-'''    
 
-          
+'''
+Problem for the NN
+'''
+# Create the inputs
+dataset = np.random.randn(20, 2)*10
+df_dataset = pd.DataFrame(dataset)
+df_dataset.head()
+ 
+X1 = (np.array(dataset[:,0])).reshape(-1, 1)
+X2 = (np.array(dataset[:,1])).reshape(-1, 1)
+Y = 0.5*X1 + np.square(X2*0.1) + 5*np.random.randn(1)
+
+def scale(vector):
+    # Function to scale a vector to range [0 1]
+    maxs = np.max(vector)
+    mins = np.min(vector)
+    scaling = np.zeros(len(vector))
+    
+    for i in range(0, len(vector)):
+        scaling[i] = (vector[i] - mins) / (maxs - mins)
+    return scaling
+    
+
+def unScale(scal, unscal):
+    # Unscale function to a vector giving the scaled and an unscaled reference vector
+    maxs = np.max(unscal)
+    mins = np.min(unscal)
+    unscaling = np.zeros(len(scal))
+    
+    for i in range(0, len(scal)):    
+        unscaling[i] = scal[i] * (maxs-mins) + mins
+    return unscaling
+
+'''
+X1, X2 = np.meshgrid(X1, X2)
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.plot_wireframe(X1, X2, Y, rstride=10, cstride=10)
+plt.show()
+'''
+
+fig = plt.figure()
+df_Y = pd.DataFrame(Y)
+dataframe = pd.concat([df_dataset[0], df_dataset[1], df_Y], axis=1)
+dataframe.plot()
+
+'''
+Problem for the NN
+'''
+scalerX1 = preprop.MinMaxScaler()
+scalerX2 = preprop.MinMaxScaler()
+scalerY  = preprop.MinMaxScaler()
+
+x1 = scalerX1.fit_transform(X1)
+x2 = scalerX2.fit_transform(X2)
+y  = scalerY.fit_transform(Y)
+
+x = np.concatenate((x1, x2), axis=1)
+
+network = Net(inputLayerSize=2, hiddenLayerSize=3, outputLayerSize=1)
+network.train(x, y, epochs=50, learning_rate=0.01, reg_lambda=0.01, print_loss=True)
+
+
+
+
+
+
+
+
+
+
+
+
+           
