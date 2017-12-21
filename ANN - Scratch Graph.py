@@ -10,7 +10,9 @@ import numpy as np
 import pandas as pd
 import sklearn.preprocessing as preprop
 import matplotlib.pyplot as plt
+from statsmodels.tools.eval_measures import rmse
 
+np.random.seed(2017)
 
 class AddGate:
     '''
@@ -22,7 +24,7 @@ class AddGate:
 
     def backward(self, q, b, dJ):
         # Compute the chain rule 
-        dq = dJ * np.ones_like(q)                                           # dJ/dq = (dJ/dr)·(dr/dq) = (dJ/dr)·1 --> Eq. B2
+        dq = dJ * np.ones_like(q) # Element-wise multiplication                                        # dJ/dq = (dJ/dr)·(dr/dq) = (dJ/dr)·1 --> Eq. B2
         ones = np.ones((1, dJ.shape[0]), dtype=np.float64)
         db = np.dot(ones, dJ)    # dJ/db = (dJ/dr)·(dr/db) = (dJ/dr)·1 --> Eq. B3
         return dq, db 
@@ -196,7 +198,7 @@ class Net:
             self.b2 += -learning_rate * db2
             self.W2 += -learning_rate * dW2
 
-            if print_loss and epoch % 1000 == 0:
+            if print_loss and epoch % 100 == 0:
                 print("Loss after iteration %i: %f" %(epoch, J))
                 
             if epoch == epochs-1:
@@ -274,6 +276,8 @@ network.train(x, y, epochs=2000, learning_rate=0.01, reg_lambda=0.01, print_loss
 
 predictions = network.feed_forward(x)
 predictions = scalerY.inverse_transform(predictions)
+RMSE = rmse(predictions, Y)
+print('RMSE = %.2f' % (RMSE[0]))
 
 plt.figure()
 plt.title('Actual vs Predicted')
