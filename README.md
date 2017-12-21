@@ -9,7 +9,7 @@ The work is divided in 4 chapters to follow, where we will split into the smalle
 
 Please, find follow the different chapters in the next order:
 
-[(1)  Neural Networks - First contact](https://github.com/PabloRR100/Artificial-Neural-Networks/blob/master/Documentation/1.%20Neural%20Networks%20-%20Basic%20Introduction.pdf)
+[(1) - Neural Networks - First contact](https://github.com/PabloRR100/Artificial-Neural-Networks/blob/master/Documentation/1.%20Neural%20Networks%20-%20Basic%20Introduction.pdf)
 
 [(2) - Neural Networks - The Big Picture](https://github.com/PabloRR100/Artificial-Neural-Networks/blob/master/Documentation/2.%20Neural%20Networks%20-%20The%20Big%20Picture.pdf)
 
