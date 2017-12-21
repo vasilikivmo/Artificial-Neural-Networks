@@ -5,7 +5,9 @@ In this work, there is a detailed explanation of this magic that is happening un
 
 The work is divided in 4 chapters to follow, where we will split into the smallest componentes our next best friend we can see here:
 
-<img src="./Images/ANN Structure.png">
+<p align="center"> 
+<img src="./Images/ANN Structure.png" width="40%">
+</p>
 
 Please, find follow the different chapters in the next order:
 
