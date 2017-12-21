@@ -22,8 +22,9 @@ class AddGate:
 
     def backward(self, q, b, dJ):
         # Compute the chain rule 
-        dq = dJ * np.ones_like(q)       # dJ/dq = (dJ/dr)·(dr/dq) = (dJ/dr)·1 --> Eq. B2
-        db = dJ * np.ones_like(q)       # dJ/db = (dJ/dr)·(dr/db) = (dJ/dr)·1 --> Eq. B3
+        dq = dJ * np.ones_like(q)                                           # dJ/dq = (dJ/dr)·(dr/dq) = (dJ/dr)·1 --> Eq. B2
+        ones = np.ones((1, dJ.shape[0]), dtype=np.float64)
+        db = np.dot(ones, dJ)    # dJ/db = (dJ/dr)·(dr/db) = (dJ/dr)·1 --> Eq. B3
         return dq, db 
     
 
@@ -44,8 +45,8 @@ class MultiplyGate:
     '''
     def backward(self, X, W, dJ):
         # Compute the chain rule (compute the bottom gradient, given the top gradient)
-        dX = np.dot(dJ, W)  # dJ/dx = (dJ/dq)·(dq/dW) # dq/dX = transpose(W) --> Eq. B4
-        dW = np.dot(dJ, X)  # dJ/dW = (dJ/dq)·(dq/dX) # dq/dX = transpose(X) --> Eq. B5
+        dX = np.dot(dJ, W.T)  # dJ/dx = (dJ/dq)·(dq/dW) # dq/dX = transpose(W) --> Eq. B4
+        dW = np.dot(X.T, dJ)  # dJ/dW = (dJ/dq)·(dq/dX) # dq/dX = transpose(X) --> Eq. B5
         return dX, dW
 
 class Sigmoid:
@@ -91,7 +92,7 @@ class Cost:
     
     def diff(self, y):          # Backward
         # Compute the derivative of our cost to start the backProp process
-        dJ = np.sum(-(y - self.y_hat)) 
+        dJ = (-(y - self.y_hat)) 
         return dJ                       # return top_diff
         
     
@@ -108,6 +109,7 @@ class Net:
         self.inputLayerSize  = inputLayerSize
         self.hiddenLayerSize = hiddenLayerSize
         self.outputLayerSize = outputLayerSize
+        self.counter = 0
         
         self.W1 = np.random.randn(self.inputLayerSize, self.hiddenLayerSize)
         self.W2 = np.random.randn(self.hiddenLayerSize, self.outputLayerSize)
@@ -131,12 +133,7 @@ class Net:
         '''
         Forward propagation of the input to get our prediction y_hat (or z)
         Definition of how or neural network computes
-        '''
-        if type(X) == np.matrix:
-            pass
-        elif type(X) == list():
-            X = np.transpose(np.matrix(X))
-        
+        '''        
         mulGate = MultiplyGate()
         addGate = AddGate()
         layer   = Sigmoid()
@@ -162,23 +159,13 @@ class Net:
         '''
         Batch gradient descent using the backpropagation algorithms
         '''
-        if type(X) == np.matrix:
-            pass
-        elif type(X) == list():
-            X = np.transpose(np.matrix(X))
-        
-        if type(y) == np.matrix:
-            pass
-        elif type(y) == list():
-            y = np.transpose(np.matrix(y))
-        
-        
         mulGate    = MultiplyGate()
         addGate    = AddGate()
         layer      = Sigmoid()
     
         for epoch in range(epochs):           
             
+            self.counter += 1           # Control Variable
             # Forward propagation
             z = self.feed_forward(X)  # Forward and update the value of all the variables
             costOutput = Cost(z)
@@ -189,13 +176,13 @@ class Net:
 
             # Backward propagation
             top_diff   = costOutput.diff(y)                             # Eq. B1
-            db1, da2W2 = addGate.backward(self.a2W2, self.b2, top_diff) # Eq. B2 + B3
+            da2W2, db2 = addGate.backward(self.a2W2, self.b2, top_diff) # Eq. B2 + B3
             da2, dW2   = mulGate.backward(self.a2, self.W2, da2W2)      # Eq. B4 + B5
                 # '''Layer'''
             dz2        = layer.backward(self.z2, da2)                   # Eq. B6  
                 # '''Layer'''
-            db2, dXW1  = addGate.backward(self.XW1, self.b1, dz2)       # Eq. B7 + B8
-            dX1, dW1   = mulGate.backward(self.X1, self.W1, dXW1)       # Eq. B9 + B10
+            dXW1, db1  = addGate.backward(self.XW1, self.b1, dz2)       # Eq. B7 + B8
+            dX1, dW1   = mulGate.backward(X, self.W1, dXW1)             # Eq. B9 + B10
             
             # Update weights
                 
@@ -211,6 +198,15 @@ class Net:
 
             if print_loss and epoch % 1000 == 0:
                 print("Loss after iteration %i: %f" %(epoch, J))
+                
+            if epoch == epochs-1:
+
+                plt.figure()
+                plt.title('Evolution of Loss')
+                plt.xlabel('Epoch')
+                plt.ylabel('Loss')
+                plt.plot(self.cost, 'b-')
+                plt.show()
 
 
 
@@ -274,9 +270,19 @@ y  = scalerY.fit_transform(Y)
 x = np.concatenate((x1, x2), axis=1)
 
 network = Net(inputLayerSize=2, hiddenLayerSize=3, outputLayerSize=1)
-network.train(x, y, epochs=50, learning_rate=0.01, reg_lambda=0.01, print_loss=True)
+network.train(x, y, epochs=2000, learning_rate=0.01, reg_lambda=0.01, print_loss=True)
 
+predictions = network.feed_forward(x)
+predictions = scalerY.inverse_transform(predictions)
 
+plt.figure()
+plt.title('Actual vs Predicted')
+plt.ylabel('Y')
+plt.xlabel('X')
+plt.plot(Y, 'b-', label='Actual')
+plt.plot(predictions, 'r-', label='Predicted')
+plt.legend()
+plt.show()
 
 
 
