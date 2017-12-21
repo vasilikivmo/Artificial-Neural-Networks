@@ -5,8 +5,14 @@ In this work, there is a detailed explanation of this magic that is happening un
 
 The work is divided in 4 chapters to follow, where we will split into the smallest componentes our next best friend we can see here:
 
-<img src="../Images/ANN/ANN.png">
+<img src="./Images/ANN.png">
 
 Please, find follow the different chapters in the next order:
 
-[1 - First contact with Neural Networks](https://github.com/PabloRR100/Artificial-Neural-Networks/blob/master/1.%20Neural%20Networks%20-%20Basic%20Introduction.pdf)
+[(1)  Neural Networks - First contact](https://github.com/PabloRR100/Artificial-Neural-Networks/blob/master/Documentation/1.%20Neural%20Networks%20-%20Basic%20Introduction.pdf)
+
+[(2) - Neural Networks - The Big Picture](https://github.com/PabloRR100/Artificial-Neural-Networks/blob/master/Documentation/2.%20Neural%20Networks%20-%20The%20Big%20Picture.pdf)
+
+[(3) - Neural Networks - The Graph Approach](https://github.com/PabloRR100/Artificial-Neural-Networks/blob/master/Documentation/3.%20Neural%20Networks%20-%20The%20Graph%20Approach.pdf)
+
+[(4) - Neural Networks - Understanding BackProp Dimensionality](https://github.com/PabloRR100/Artificial-Neural-Networks/blob/master/Documentation/4.%20Neural%20Networks%20-%20Backpropagation%20Dimensionality%20Understanding.pdf)
